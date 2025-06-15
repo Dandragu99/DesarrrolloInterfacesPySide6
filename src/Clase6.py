@@ -19,7 +19,7 @@ class CustomButton(QPushButton):
         return self._text
 
     @text.setter
-    def text(self,value): # Si el texto es distinto al anterior
+    def text(self, value): # Si el texto es distinto al anterior
         if self._text_!= value:
             self._text = value # Actualizo la variable interna
             self.setText(value) # Cambio el texto del boton
@@ -34,11 +34,12 @@ class CustomButton(QPushButton):
         "Azul": "blue"
         }
         color = color_map.get(self._text, "gray") # Si no encuentra el texto usamos el color gris por defecto
-        self.setStyleSheet(f"background-color:{color};") # Establecemos el color de fondo del boton
+        current_style = self.styleSheet()
+        self.setStyleSheet(f"{current_style} background-color:{color};") # Establecemos el color de fondo del boton
 
 
-    def set_text_size(self,size):
-        self.setStyleSheet(f"font-size:{size} px") #Estyablecemos el tamañño usando CSS
+    def set_text_size(self, size):
+        self.setStyleSheet(f"font-size:{size}px") #Establecemos el tamaño usando CSS
 
     def add_shadow_effect(self):
         # Crear un efecto de sombrea
@@ -84,15 +85,14 @@ class CustomButton(QPushButton):
 
 
     def on_text_changed(self, new_text):
-        self.new_text_size(16)
-        print(f"El texto del boton se cambio")
         self.set_text_size(16)
+        print(f"El texto del boton se cambio")
 
 if __name__ == "__main__":
     app = QApplication([]) # Aplicacion de QT
     button = CustomButton("Rojo")
     button.show()
-    button.setText("Verde")
-    button.animate_color_change("green") # Iniciamos la aniamcion de cambio de color hacia el azul
+    button.setText("Rojo")
+    button.animate_color_change("red") # Iniciamos la aniamcion de cambio de color hacia el azul
     app.exec()
 
