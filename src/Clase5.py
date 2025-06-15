@@ -36,6 +36,8 @@ class MainWindow(QMainWindow):
         ui_file.close()
 
         self.setCentralWidget(self.ui)
+
+        # BOTÓN CAMBIAR TEXTO
         self.ui.btnCambiar.clicked.connect(self.cambiarTexto)
 
         ##COMPORTAMIENTO DEBE DE REALIZAR EL MENU CONTEXTUAL
