@@ -1,0 +1,201 @@
+DI-17FEBRERO
+Entre hoy y la semana que viene terminamos temario.
+Examen:
+Parte teórica enfocada a la práctica
+-Para que sirve una clase
+-Si tiene estas características que tipo de clases pondrías.
+Parte práctica (se puede utilizar el QTDisegner)
+-Hay que hacer una parte gráfica
+-Elaborar un informe
+-Crear un componente personalizado
+Si haces los ejercicios y el proyecto con estuidar un poquito el examen se le hará sencillo.
+
+No pedirá un compoenente personalizado para el examen.
+
+ELABORACIÓN DE INFORMES.
+Como cargar un archivo csv con python.
+Generar una interfaz gráfica.
+CSV-> Un formato de archvio, en vez de estar formado por columnas como en excel está formado
+por comas.
+
+Ejercicio publicado en el campus
+
+Dentro de pycharm.
+Primero vamos a importar el csv. Luego realizaremos una aplicación que nos deje
+elegir el mes.
+pandas-> para tratar los archivos como tablas.
+datapanel-> como pandas es parecido.
+pip install datapane
+Verse a partir del minuto 38 al 50
+
+import pandas as pd
+
+import altair as alt
+
+import datapane as dp
+
+import os
+
+
+
+fichero_csv = "prueba.csv"
+
+df = pd.read_csv(fichero_csv)
+
+
+
+def generar_informe(mes):
+
+    datos_mes = df[df['Mes'] == mes]
+
+
+
+    ## Grafico barras
+
+    grafico_barras = alt.Chart(datos_mes).mark_bar().encode(
+
+        x='Nombre:N', y='Importe:Q', color='Nombre:N'
+
+    ).properties(title = f"Ventas por Vendedor en {mes}")
+
+
+
+    ## Grafico de sectores
+
+    datos_agg = datos_mes.groupby("Nombre")["Unidades"].sum().reset_index()
+
+    grafico_sectores = alt.Chart(datos_agg).mark_arc().encode(
+
+        theta= 'Unidades:Q',  color = 'Nombre:N'
+
+    ).properties(title = f"Distribucion de unidades vendidas en {mes}")
+
+
+
+    titulo = dp.HTML('Informe')
+
+
+
+    reporte = dp.Report(
+
+        dp.Plot(grafico_barras),
+
+        dp.Plot(grafico_sectores)
+
+    )
+
+
+
+    ruta_reporte = os.path.abspath("informe_ventas2.html")
+
+    reporte.save(ruta_reporte)
+
+
+
+if __name__ == "__main__":
+
+    generar_informe('Enero')
+
+
+
+
+HASTA AQUI LO QUE ENTRA EN EL EXAMEN
+LO SIGUIENTE NO ENTRA PERO ES UTIL EN LA VIDA LABORAL.
+
+import pandas as pd
+
+import altair as alt
+
+import datapane as dp
+
+import os
+
+
+
+fichero_csv = "prueba.csv"
+
+df = pd.read_csv(fichero_csv)
+
+
+
+def generar_informe(mes):
+
+    datos_mes = df[df['Mes'] == mes]
+
+
+
+    ## Grafico barras
+
+    grafico_barras = alt.Chart(datos_mes).mark_bar().encode(
+
+        x='Nombre:N', y='Importe:Q', color='Nombre:N'
+
+    ).properties(title = f"Ventas por Vendedor en {mes}")
+
+
+
+    ## Grafico de sectores
+
+    datos_agg = datos_mes.groupby("Nombre")["Unidades"].sum().reset_index()
+
+    grafico_sectores = alt.Chart(datos_agg).mark_arc().encode(
+
+        theta= 'Unidades:Q',  color = 'Nombre:N'
+
+    ).properties(title = f"Distribucion de unidades vendidas en {mes}")
+
+
+	titulo = cp.HTML("<h1>Informes</h1>
+
+
+    titulo = dp.HTML('Informe')
+
+
+
+    reporte = dp.Report(
+
+        dp.Plot(grafico_barras),
+
+        dp.Plot(grafico_sectores)
+
+    )
+
+
+
+    ruta_reporte = os.path.abspath("informe_ventas2.html")
+
+    reporte.save(ruta_reporte)
+
+class VentanaPrincipal(QMainWindow):
+  def __init__(self):
+    super().__init__()
+    self.setWindowTitle("INforme de ventas")
+
+
+    self.selector_mes =QComboBox()
+    self.sleector_mes.addItems(df['Mes'].unique())
+    self.addWidget(selef.selector_mes)
+
+
+    self.vsita_web = QwebEngineView()
+
+    contenedor = QWiget()
+    contenedor.setLayout(layout)
+    set.setCentralLayout(contenedor)
+
+
+
+    def Actualizar_reporte(self):
+	mes_seleccionado = self.selector_mes.cuerrentText()
+	generar_informe(mes_seleccionado)
+	ruta-reporte = os.path.obspath("informe_ventas2.html")
+	if os.path.exists(ruta_reporte)
+	   with open(ruta_reporte , 'r', encoding ="utf-8") as file:
+		html_content = file.read()
+		self.vista_web.setHtml(html_content)
+
+if __name__ == "__main__":
+    QApplication([])
+    generar_informe('Enero')
+    ventana.show()
+    app.exec

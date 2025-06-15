@@ -1,0 +1,275 @@
+import sys
+
+import cursor
+import cx_Oracle
+import requests
+import self
+from PySide6 import QtWidgets, QtGui, QtCore
+from PySide6.QtCore import QThread, Signal
+from PySide6.QtWidgets import QApplication, QWidget, QMessageBox, QGridLayout, QLabel
+from urllib3.util import url
+
+# Configuración de la conexión a la base de datos Oracle
+DB_USER = "system"
+DB_PASSWORD = "1234"  # Se recomienda cambiar esta contraseña por seguridad
+DB_DSN = "localhost/XEPDB1"  # Dirección de la base de datos
+
+
+def conectar_bd():
+    """
+    Establece la conexión con la base de datos y crea las tablas necesarias si no existen.
+    """
+    conexion = cx_Oracle.connect(DB_USER, DB_PASSWORD, DB_DSN)
+    cursor = conexion.cursor()
+
+    # Creación de la tabla de usuarios
+    cursor.execute("""
+        BEGIN
+            EXECUTE IMMEDIATE 'CREATE TABLE usuarios_DI (
+                id_usuario NUMBER GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+                nombre_usuario VARCHAR2(50) UNIQUE NOT NULL,
+                password VARCHAR2(100) NOT NULL
+            )';
+        EXCEPTION
+            WHEN OTHERS THEN
+                IF SQLCODE != -955 THEN RAISE; END IF;  -- Ignorar error si la tabla ya existe
+        END;
+    """)
+
+    # Creación de la tabla de favoritos
+    cursor.execute("""
+        BEGIN
+            EXECUTE IMMEDIATE 'CREATE TABLE favoritos_DI (
+                id_favorito NUMBER GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+                id_usuario NUMBER REFERENCES usuarios_DI(id_usuario),
+                url_imagen VARCHAR2(255) NOT NULL
+            )';
+        EXCEPTION
+            WHEN OTHERS THEN
+                IF SQLCODE != -955 THEN RAISE; END IF;
+        END;
+    """)
+
+    conexion.commit()
+    return conexion
+
+
+# Hilo para obtener imágenes desde Unsplash API
+class ObtenerImagenesThread(QThread):
+    imagenes_obtenidas = Signal(list)
+
+    def run(self):
+        api_key = 'BF9cbbsBbpoY1GGZBCI8yfxGLw5pQV0VuQYCpKYf0j4'  # Clave de la API de Unsplash
+        url = f'https://api.unsplash.com/photos?client_id={api_key}&per_page=6'
+
+        try:
+            respuesta = requests.get(url)
+            respuesta.raise_for_status()  # Verifica si la solicitud fue exitosa
+            imagenes = respuesta.json()
+            urls_imagenes = [imagen['urls']['regular'] for imagen in imagenes]
+            self.imagenes_obtenidas.emit(urls_imagenes)  # Emitir las URLs de imágenes
+        except requests.exceptions.RequestException as e:
+            print(f"Error al obtener las imágenes: {e}")
+            self.imagenes_obtenidas.emit([])
+
+
+# Ventana de Bienvenida
+class VentanaBienvenida(QtWidgets.QWidget):
+    def __init__(self, nombre_usuario):
+        super().__init__()
+        self.setWindowTitle("Bienvenido")
+        self.setGeometry(100, 100, 600, 400)
+        self.nombre_usuario = nombre_usuario
+
+        layout = QtWidgets.QGridLayout()
+        self.setLayout(layout)
+
+        self.thread_imagenes = ObtenerImagenesThread()
+        self.thread_imagenes.imagenes_obtenidas.connect(self.mostrar_imagenes)
+        self.thread_imagenes.start()
+
+    def mostrar_imagenes(self, imagenes):
+        conexion = conectar_bd()
+        cursor = conexion.cursor()
+        cursor.execute(
+            "SELECT url_imagen FROM favoritos_DI INNER JOIN usuarios_DI ON favoritos_DI.id_usuario = usuarios_DI.id_usuario WHERE usuarios_DI.nombre_usuario = :1",
+            (self.nombre_usuario,))
+        favoritos = {row[0] for row in cursor.fetchall()}
+        conexion.close()
+
+        for i, url in enumerate(imagenes):
+            etiqueta = QtWidgets.QLabel(self)
+            pixmap = QtGui.QPixmap()
+            pixmap.loadFromData(requests.get(url).content)
+            etiqueta.setPixmap(pixmap.scaled(150, 150))
+            self.layout().addWidget(etiqueta, i // 3, (i % 3) * 2)
+
+            boton_fav = QtWidgets.QPushButton("★")
+            boton_fav.setCheckable(True)
+            boton_fav.setChecked(url in favoritos)
+            boton_fav.clicked.connect(lambda checked, u=url: self.guardar_favorito(u, checked))
+            self.layout().addWidget(boton_fav, i // 3, (i % 3) * 2 + 1)
+
+    def guardar_favorito(self, url, checked):
+        conexion = conectar_bd()
+        cursor = conexion.cursor()
+        if checked:
+            cursor.execute(
+                "INSERT INTO favoritos_DI (id_usuario, url_imagen) VALUES ((SELECT id_usuario FROM usuarios_DI WHERE nombre_usuario = :1), :2)",
+                (self.nombre_usuario, url))
+        else:
+            cursor.execute(
+                "DELETE FROM favoritos_DI WHERE id_usuario = (SELECT id_usuario FROM usuarios_DI WHERE nombre_usuario = :1) AND url_imagen = :2",
+                (self.nombre_usuario, url))
+        conexion.commit()
+        conexion.close()
+
+
+# Ventana de Login
+class VentanaLogin(QtWidgets.QWidget):
+    def __init__(self):
+        super().__init__()
+        self.setWindowTitle("Login")
+        self.setGeometry(100, 100, 300, 200)
+
+
+        layout = QtWidgets.QVBoxLayout()
+
+        # Campo para ingresar el nombre de usuario
+        self.usuario = QtWidgets.QLineEdit(self)
+        self.usuario.setPlaceholderText("Usuario")
+        layout.addWidget(self.usuario)
+
+        # Campo para ingresar la contraseña
+        self.password = QtWidgets.QLineEdit(self)
+        self.password.setPlaceholderText("Contraseña")
+        self.password.setEchoMode(QtWidgets.QLineEdit.Password)
+        layout.addWidget(self.password)
+
+        # Botón para iniciar sesión
+        self.boton_login = QtWidgets.QPushButton("Login")
+        self.boton_login.clicked.connect(self.verificar_credenciales)
+        layout.addWidget(self.boton_login)
+
+        # Botón para registrarse
+        self.boton_registro = QtWidgets.QPushButton("Registrar")
+        self.boton_registro.clicked.connect(self.abrir_registro)
+        layout.addWidget(self.boton_registro)
+
+        self.setLayout(layout)
+
+    def verificar_credenciales(self):
+        """Verifica si el usuario y la contraseña son correctos."""
+        conexion = conectar_bd()
+        cursor = conexion.cursor()
+        cursor.execute("SELECT * FROM usuarios_DI WHERE nombre_usuario = :1 AND password = :2",
+                       (self.usuario.text(), self.password.text()))
+        usuario = cursor.fetchone()
+
+        if usuario:
+            self.ventana_bienvenida = VentanaBienvenida(usuario[1])
+            self.ventana_bienvenida.show()
+            self.close()
+        else:
+            QtWidgets.QMessageBox.warning(self, "Error", "Credenciales incorrectas")
+
+        conexion.close()
+
+    def abrir_registro(self):
+        ventana_registro = VentanaRegistro()
+        ventana_registro.show()
+
+
+
+
+   # Ventana de Registro
+class VentanaRegistro(QWidget):
+        def __init__(self):
+           super().__init__()
+           self.setWindow
+
+           layout = QtWidgets.QVBoxLayout()
+           self.usuario = QtWidgets.QLineEdit(self)
+           self.usuario.setPlaceholderText("Usuario")
+           layout.addWidget(self.usuario)
+
+           self.password = QtWidgets.QLineEdit(self)
+           self.password.setPlaceholderText("Contraseña")
+           self.password.setEchoMode(QtWidgets.QLineEdit.Password)
+           layout.addWidget(self.password)
+
+           self.boton_registrar = QtWidgets.QPushButton("Registrar")
+           self.boton_registrar.clicked.connect(self.registrar_usuario())
+           layout.addWidget(self.boton_registrar)
+           layout.addWidget(self.boton_login)
+           self.setLayout(layout)
+
+
+
+        def registrar_usuario(self):
+            conexion = conectar_bd()
+            cursor = conexion.cursor()
+            try:
+                cursor.execute("INSERT INTO usuarios_DI(nombre_usuario, password) VALUES (1:, :2)",
+                           (self.usuario.text(),self.password.text()))
+                conexion.commit()
+                QMessageBox.information(self,"Exito" ,"Usuario registrado correctamente)")
+                self.close()
+            except cx_Oracle.IntegrityError:
+             QMessageBox.warning(self, "Error", "El usuario ya existe")
+
+            conexion.close()
+
+
+## HILO PARA OBTENER IMAGENES
+
+class ObtenerImagenesThread(QThread):
+    imagenes_obtenidas = Signal(list)
+    def run(self):
+        api_key = 'JZ_FilcjzF9JxszGJMh6i4tkJCV40deqI9gy_P4fzGw'
+        url = f'https://api.unsplash.com/photos/?client_id={api_key}'
+
+        try:
+            respuesta = requests.get(url)
+            respuesta.raise_for_status() # LANZA UN ERROR SI LA RESPUESTA ES MALA
+            imagenes = respuesta.json()
+            # EXTRAEMOS LOS URL
+            url_imagenes = [imagen['urls']['regular']for imagen in imagenes]
+            self.imagenes_obtenidas.emit(url_imagenes)
+
+        except requests.exceptions.RequestException as e:
+            print(f"Error al obtener las imágenes: {e}")
+            self.imagenes_obtenidas.emit([])
+
+## VENTANA DE VBIENVENIDA
+
+class VentanBienvenida(QWidget):
+    def __init__(self):
+        super().__init__()
+        self.setWindowTitle("Bienvenidio")
+        self.setGeometry(100,100,500,400)
+
+        layout = QGridLayout()
+        self.setLayout(layout)
+
+        self.thread_imagenes = ObtenerImagenesThread()
+        self.thread_imagenes.connect(self.mostrarImagenes)
+        self.thread_imagenes.start()
+
+    def mostrarImagenes(self,imagenes):
+        if not imagenes:
+            QMessageBox.warning(self, "Error", "No se puedieron cargar las imágenes")
+
+        layout = self.layout()
+        for i, url in enumerate(imagenes):
+            etiqueta = QLabel(self)
+            pixmap = QtGui.QPixmap()
+            pixmap.loadFromData(requests.get(url).content)
+            etiqueta.setPixmap(pixmap.scaled(100,100))
+            layout.addWidget(etiqueta, i // 3, (i % 3) *2)
+
+if __name__ == "__main__":
+     app = QApplication([])
+     login = VentanaBienvenida()
+     login.show()
+     sys.exit(app.exec())

@@ -1,0 +1,71 @@
+"""
+DI-24Febrero
+
+último día que veremos contenido.
+
+Ha colgado un simulacro.
+Hay que entregar los cuestionarios y retos.
+En el simulacro hay 10 preguntas tipo
+examen para practicar.
+
+Hay un ejercicio para cada tema.
+La siguiente semana-dudasy corregrirá
+el simulacro colgado.
+
+Esta vez crearemos el archivo de python
+fuera de src.
+
+El módulo dentro de la carpeta principal
+Clase8
+Se pueden traer escritos en un papel los test unitarios
+"""
+"""
+            pip install pytest
+            Creamos una carpeta llamada test
+            Dentro de esta carpeta creamos un archivo.py llamda
+            test_task_manager.py
+
+            Tenemos que crear una instancia general.
+            Y otra para cada test.
+            @ pytest.fixture(scope="session")  # Vamos a utilizar esta instancia
+            para todos los test
+ """
+
+ """
+dentro de la consola -> pytest test/test_task_manager.py
+
+Esto se puede traer escrita en un papel porque siempre
+se utilizan para realizar test unitarios.
+
+sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
+
+Antonio Jesús Carmona Lara
+18:47
+"""
+
+
+
+"""
+¿COMO SE HACE EL README?
+Vamos a src y creamos un readme un arhcivo markdown es decir, -> Clase8.md
+# proyecto  Di_UAX
+
+## Descripcion
+
+Este es un gestor de tareas en pyside6 qeu permite agregar y eliminar
+tareas.
+
+## Instalacion
+
+1. Clona el repositorio:
+```sh    -> par poder copiar el codigo
+  git clone https://github.com
+
+
+¿Como se hac el ejecutable?
+Hay que instalar pip install pyinstaller
+
+Dentro de la terminal pyinstaller --onefile --windowed Clase8.py
+Y así nos crea el ejecutable.
+
+"""
